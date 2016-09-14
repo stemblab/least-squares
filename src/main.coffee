@@ -31,22 +31,22 @@ class Plot extends d3Object
     super "plot"
 
     # data
-    xd = [0.3, 0.5, 0.7, 0.9]
-    yd = [0.3, 0.4, 0.4, 0.9]
-    @dd = @d3Format(xd, yd) # format for d3
+    @xd = [0.3, 0.5, 0.7, 0.9]
+    @yd = [0.3, 0.4, 0.4, 0.9]
+    @dd = @d3Format(@xd, @yd) # format for d3
 
     # polynomial
-    xp = linspace(0, 1, 100)
-    yp = (@k1*x + @k2*x*x for x in xp)
-    @dp = @d3Format(xp, yp) # format for d3
+    #xp = linspace(0, 1, 100)
+    #yp = (@k1*x + @k2*x*x for x in xp)
+    #@dp = @d3Format(xp, yp) # format for d3
 
     # least squares
-    [c0, A0] = @polyLeastSquares(xd, yd)
-    yk = dot(T(A0), [@k1, @k2]) # values at xd
+    [c0, @A0] = @polyLeastSquares(@xd, @yd)
+    #yk = dot(T(A0), [@k1, @k2]) # values at xd
 
     #---- d3 ----#
 
-    @squareData = @squarify(xd, yd, yk)
+    #@squareData = @squarify(xd, yd, yk)
 
     # SVG
     @obj.attr("id", "plot")
@@ -63,43 +63,66 @@ class Plot extends d3Object
       .style("fill", "none")
       .style("stroke-width", 10);
 
-    plot = @obj.append('g')
+    @plot = @obj.append('g')
       .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
       .attr('width', width)
       .attr('height', height)
       .attr('id','plot')
 
-    plot.append("g")
+    @plot.append("g")
       .attr("id","x-axis")
       .attr("class", "axis")
       .attr("transform", "translate(0, #{height+10})")
       .call(@xAxis)
 
-    plot.append("g")
+    @plot.append("g")
       .attr("id","y-axis")
       .attr("class", "axis")
       .attr("transform", "translate(-10, 0)")
       .call(@yAxis)
 
-    pline = d3.line()
-      .x((d) => @x(d.x))
-      .y((d) => @y(d.y))
-
-    plot.append("path")
-      .datum(@dp)
-      .attr("class", "line")
-      .attr("d", pline)
-
-    plot.selectAll("dot")
+    @plot.selectAll("dot")
       .data(@dd)
       .enter().append("circle")
       .attr("r", 5)
       .attr("cx", (d) => @x(d.x))
       .attr("cy", (d) => @y(d.y));
 
-    plot.selectAll("square")
+    @pline = d3.line()
+      .x((d) => @x(d.x))
+      .y((d) => @y(d.y))
+
+
+    @draw()
+
+  update1: (k1) ->
+    @k1 = k1
+    @draw()
+
+  update2: (k2) ->
+    @k2 = k2
+    @draw()
+
+  draw:  ->
+
+    # polynomial
+    xp = linspace(0, 1, 100)
+    yp = (@k1*x + @k2*x*x for x in xp)
+    @dp = @d3Format(xp, yp) # format for d3
+
+    yk = dot(T(@A0), [@k1, @k2]) # values at xd
+    @squareData = @squarify(@xd, @yd, yk)
+
+    @plot.append("path")
+      .datum(@dp)
+      .attr("class", "line")
+      .attr("d", @pline)
+
+    ###
+    @plot.selectAll("square")
       .data(@squareData)
-      .enter().append("rect")
+      .enter()
+      .append("rect")
       .attr("x", (d) => (d.x))
       .attr("y", (d) => (d.y))
       .attr("height", (d) => (d.e))
@@ -107,6 +130,35 @@ class Plot extends d3Object
       .style("stroke", "green")
       .style("fill", "none")
       .style("stroke-width", 1)
+    ###
+
+    #t = d3.transition().duration(750)
+
+    square = @plot.selectAll("square")
+      .data(@squareData)
+
+    #console.log "squaredata", square
+
+    square.exit().remove()
+
+    square.attr("x", (d) => (d.x))
+      .attr("y", (d) => (d.y))
+      .attr("height", (d) => (d.e))
+      .attr("width", (d) => (d.e))
+      .style("stroke", "blue")
+      #.style("fill", "none")
+      #.style("stroke-width", 1)
+
+    square.enter().append("rect")
+      .attr("x", (d) => (d.x))
+      .attr("y", (d) => (d.y))
+      .attr("height", (d) => (d.e))
+      .attr("width", (d) => (d.e))
+      .style("stroke", "green")
+      .style("fill", "none")
+      .style("stroke-width", 1)
+
+    #square.exit().remove()
 
   polyLeastSquares: (x, y) ->
     A = pow(rep([2],x),T(rep([4],[1,2])))
@@ -147,15 +199,23 @@ class Plot extends d3Object
 class Slider
 
   constructor: (@id, @change) ->
-    @slider = $ "##{id}"
-    @sliderDisp = $ "##{id}-value"
+    @slider = $ "##{@id}"
+    @sliderDisp = $ "##{@id}-value"
     @slider.unbind()  # needed to clear event handlers
     @slider.on "change", =>
       val = @val()
       @change val
       @sliderDisp.html(val)
 
-      val: -> @slider.val()
+  val: -> @slider.val()
 
 
-new Plot
+plot = new Plot
+
+new Slider "k1", (v) => plot.update1(v)
+new Slider "k2", (v) => plot.update2(v)
+
+
+#
+#
+#
