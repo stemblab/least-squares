@@ -52,16 +52,44 @@
     height = 480 - margin.top - margin.bottom;
 
     function Plot(k11, k21) {
-      var c0, ref;
+      var c0, rect, ref, self, xAxis;
       this.k1 = k11 != null ? k11 : 0.25;
       this.k2 = k21 != null ? k21 : 0.75;
-      Plot.__super__.constructor.call(this, "plot");
+      Plot.__super__.constructor.call(this, "board");
       this.xd = [0.3, 0.5, 0.7, 0.9];
       this.yd = [0.3, 0.4, 0.4, 0.9];
       this.dd = this.d3Format(this.xd, this.yd);
       ref = this.polyLeastSquares(this.xd, this.yd), c0 = ref[0], this.A0 = ref[1];
-      this.obj.attr("id", "plot").attr('width', 480).attr('height', 480);
-      this.obj.append("rect").attr("x", 0).attr("y", 0).attr("height", 480).attr("width", 480).style("stroke", "blue").style("fill", "none").style("stroke-width", 10);
+      this.obj.attr("id", "svg").attr('width', 960).attr('height', 480);
+      this.obj.append("rect").attr("x", 0).attr("y", 0).attr("height", 480).attr("width", 960).style("stroke", "blue").style("fill", "none").style("stroke-width", 10);
+      this.space = this.obj.append('g').attr('transform', "translate(" + 480. + "," + 0. + ")").attr('width', width).attr('height', height).attr('id', 'space');
+      xAxis = this.space.append("g").attr("id", "x-axis").attr("class", "axis").attr("transform", "translate(0, " + (height + 10) + ")").call(this.xAxis);
+      this.space.append("g").attr("id", "y-axis").attr("class", "axis").attr("transform", "translate(-10, 0)").call(this.yAxis);
+      rect = this.space.append("rect").attr("x", 0).attr("y", 0).attr("height", 480).attr("width", 480).style("stroke", "green").style("fill", "white").style("stroke-width", 15);
+      this.cursor = this.space.append("circle").attr("r", 5).attr("cx", 77).attr("cy", 99);
+      self = this;
+      rect.on('mousedown', function() {
+        var X, Y, dx, dy, m, u, v;
+        X = self.cursor.attr("cx");
+        Y = self.cursor.attr("cy");
+        m = d3.mouse(this);
+        dx = X - m[0];
+        dy = Y - m[1];
+        u = dx + dy;
+        v = dx - dy;
+        if (u < 0 && v < 0) {
+          self.cursor.attr("cx", parseInt(X) + 10);
+        }
+        if (u > 0 && v > 0) {
+          self.cursor.attr("cx", parseInt(X) - 10);
+        }
+        if (u > 0 && v < 0) {
+          self.cursor.attr("cy", parseInt(Y) - 10);
+        }
+        if (u < 0 && v > 0) {
+          return self.cursor.attr("cy", parseInt(Y) + 10);
+        }
+      });
       this.plot = this.obj.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')').attr('width', width).attr('height', height).attr('id', 'plot');
       this.plot.append("g").attr("id", "x-axis").attr("class", "axis").attr("transform", "translate(0, " + (height + 10) + ")").call(this.xAxis);
       this.plot.append("g").attr("id", "y-axis").attr("class", "axis").attr("transform", "translate(-10, 0)").call(this.yAxis);
@@ -83,7 +111,15 @@
           return _this.y(d.y);
         };
       })(this));
-      this.draw();
+      this.plot.append("g").append("path").datum([
+        {
+          x: 0,
+          y: 0
+        }, {
+          x: 1,
+          y: 1
+        }
+      ]).attr("id", "poly").attr("d", this.pline).style("stroke", "red");
     }
 
     Plot.prototype.update1 = function(k1) {
@@ -97,7 +133,7 @@
     };
 
     Plot.prototype.draw = function() {
-      var square, x, xp, yk, yp;
+      var x, xp, yk, yp;
       xp = linspace(0, 1, 100);
       yp = (function() {
         var i, len, results;
@@ -111,24 +147,9 @@
       this.dp = this.d3Format(xp, yp);
       yk = dot(T(this.A0), [this.k1, this.k2]);
       this.squareData = this.squarify(this.xd, this.yd, yk);
-      this.plot.append("path").datum(this.dp).attr("class", "line").attr("d", this.pline);
-
-      /*
-      @plot.selectAll("square")
-        .data(@squareData)
-        .enter()
-        .append("rect")
-        .attr("x", (d) => (d.x))
-        .attr("y", (d) => (d.y))
-        .attr("height", (d) => (d.e))
-        .attr("width", (d) => (d.e))
-        .style("stroke", "green")
-        .style("fill", "none")
-        .style("stroke-width", 1)
-       */
-      square = this.plot.selectAll("square").data(this.squareData);
-      square.exit().remove();
-      square.attr("x", (function(_this) {
+      this.plot.selectAll("#poly").transition().attr("d", this.pline(this.dp)).style("stroke", "green").style("fill", "none");
+      this.plot.selectAll(".sq").data(this.squareData).enter().append("rect").attr("class", "sq").style("stroke", "blue").style("fill", "none").style("stroke-width", 1);
+      return this.plot.selectAll(".sq").data(this.squareData).transition().attr("x", (function(_this) {
         return function(d) {
           return d.x;
         };
@@ -144,24 +165,7 @@
         return function(d) {
           return d.e;
         };
-      })(this)).style("stroke", "blue");
-      return square.enter().append("rect").attr("x", (function(_this) {
-        return function(d) {
-          return d.x;
-        };
-      })(this)).attr("y", (function(_this) {
-        return function(d) {
-          return d.y;
-        };
-      })(this)).attr("height", (function(_this) {
-        return function(d) {
-          return d.e;
-        };
-      })(this)).attr("width", (function(_this) {
-        return function(d) {
-          return d.e;
-        };
-      })(this)).style("stroke", "green").style("fill", "none").style("stroke-width", 1);
+      })(this));
     };
 
     Plot.prototype.polyLeastSquares = function(x, y) {

@@ -28,7 +28,7 @@ class Plot extends d3Object
 
   constructor: (@k1=0.25, @k2=0.75) ->
 
-    super "plot"
+    super "board"
 
     # data
     @xd = [0.3, 0.5, 0.7, 0.9]
@@ -49,8 +49,8 @@ class Plot extends d3Object
     #@squareData = @squarify(xd, yd, yk)
 
     # SVG
-    @obj.attr("id", "plot")
-      .attr('width', 480)
+    @obj.attr("id", "svg")
+      .attr('width', 960)
       .attr('height', 480)
 
     # border
@@ -58,10 +58,72 @@ class Plot extends d3Object
       .attr("x", 0)
       .attr("y", 0)
       .attr("height", 480)
-      .attr("width", 480)
+      .attr("width", 960)
       .style("stroke", "blue")
       .style("fill", "none")
       .style("stroke-width", 10);
+
+    #---- parameter space ----#
+
+    @space = @obj.append('g')
+      .attr('transform', "translate(#{480},#{0})")
+      .attr('width', width)
+      .attr('height', height)
+      .attr('id','space')
+
+    xAxis = @space.append("g")
+      .attr("id","x-axis")
+      .attr("class", "axis")
+      .attr("transform", "translate(0, #{height+10})")
+      .call(@xAxis)
+
+    @space.append("g")
+      .attr("id","y-axis")
+      .attr("class", "axis")
+      .attr("transform", "translate(-10, 0)")
+      .call(@yAxis)
+
+    rect = @space.append("rect")
+      .attr("x", 0)
+      .attr("y", 0)
+      .attr("height", 480)
+      .attr("width", 480)
+      .style("stroke", "green")
+      .style("fill", "white")
+      .style("stroke-width", 15)
+
+    @cursor = @space.append("circle")
+      .attr("r", 5)
+      .attr("cx", 77)
+      .attr("cy", 99)
+
+    #d3.select("#space").on 'keydown', (event) ->
+    #  console.log d3.event.key
+
+
+    self = this
+    rect.on 'mousedown',  ->
+      X = self.cursor.attr("cx")
+      Y = self.cursor.attr("cy")
+      m = d3.mouse(this)
+      dx = X-m[0]
+      dy = Y-m[1]
+      u = dx+dy
+      v = dx-dy
+      if u<0 and v<0 then self.cursor.attr("cx", parseInt(X)+10)
+      if u>0 and v>0 then self.cursor.attr("cx", parseInt(X)-10)
+      if u>0 and v<0 then self.cursor.attr("cy", parseInt(Y)-10)
+      if u<0 and v>0 then self.cursor.attr("cy", parseInt(Y)+10)
+
+      #self.cursor.attr("cx", parseInt(X)+10)
+
+      #m = d3.mouse(evt.)
+
+      #console.log "m", m
+      #console.log "???", @cursor.attr("cx")
+
+
+    #---- plot ----#
 
     @plot = @obj.append('g')
       .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
@@ -92,8 +154,14 @@ class Plot extends d3Object
       .x((d) => @x(d.x))
       .y((d) => @y(d.y))
 
+    @plot.append("g")
+      .append("path")
+      .datum([{x:0,y:0},{x:1,y:1}])
+      .attr("id", "poly")
+      .attr("d", @pline)
+      .style("stroke", "red")
 
-    @draw()
+    #@draw()
 
   update1: (k1) ->
     @k1 = k1
@@ -110,55 +178,51 @@ class Plot extends d3Object
     yp = (@k1*x + @k2*x*x for x in xp)
     @dp = @d3Format(xp, yp) # format for d3
 
-    yk = dot(T(@A0), [@k1, @k2]) # values at xd
+    yk = dot(T(@A0), [@k1, @k2]) # values at xd (fixme: factor out)
+
     @squareData = @squarify(@xd, @yd, yk)
 
-    @plot.append("path")
-      .datum(@dp)
-      .attr("class", "line")
-      .attr("d", @pline)
+    #@plot.append("path")
+    #  .datum(@dp)
+    #  .attr("class", "line")
+    #  .attr("d", @pline)
 
-    ###
-    @plot.selectAll("square")
+    #@plot.selectAll(".ln")
+    #  .data(@dp)
+    #  .enter()
+    #  .append("path")
+    #  .attr("id", "poly")
+    #  .attr("d", @pline)
+    #  .style("stroke", "red")
+
+    @plot.selectAll("#poly")
+      #.data(@dp)
+      .transition()
+      .attr("d", @pline(@dp))
+      .style("stroke", "green")
+      .style("fill", "none")
+
+
+    @plot.selectAll(".sq")
       .data(@squareData)
       .enter()
       .append("rect")
-      .attr("x", (d) => (d.x))
-      .attr("y", (d) => (d.y))
-      .attr("height", (d) => (d.e))
-      .attr("width", (d) => (d.e))
-      .style("stroke", "green")
-      .style("fill", "none")
-      .style("stroke-width", 1)
-    ###
-
-    #t = d3.transition().duration(750)
-
-    square = @plot.selectAll("square")
-      .data(@squareData)
-
-    #console.log "squaredata", square
-
-    square.exit().remove()
-
-    square.attr("x", (d) => (d.x))
-      .attr("y", (d) => (d.y))
-      .attr("height", (d) => (d.e))
-      .attr("width", (d) => (d.e))
+      .attr("class", "sq")
       .style("stroke", "blue")
-      #.style("fill", "none")
-      #.style("stroke-width", 1)
+      .style("fill", "none")
+      .style("stroke-width", 1)
 
-    square.enter().append("rect")
+    @plot.selectAll(".sq")
+      .data(@squareData)
+      .transition()
       .attr("x", (d) => (d.x))
       .attr("y", (d) => (d.y))
       .attr("height", (d) => (d.e))
       .attr("width", (d) => (d.e))
-      .style("stroke", "green")
-      .style("fill", "none")
-      .style("stroke-width", 1)
 
-    #square.exit().remove()
+
+  #d3.select(window).on 'keydown', (event) ->
+  # console.log d3.event.key
 
   polyLeastSquares: (x, y) ->
     A = pow(rep([2],x),T(rep([4],[1,2])))
