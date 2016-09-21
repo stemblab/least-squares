@@ -34,7 +34,7 @@ class Plot extends d3Object
 
     # data
     @xd = [0.3, 0.5, 0.7, 0.9]
-    @yd = [0.3, 0.4, 0.4, 0.9]
+    @yd = (0.5*u + 0.5*u*u for u in @xd) #[0.3, 0.4, 0.7, 0.9]
     @dd = @d3Format(@xd, @yd) # format for d3
 
     # polynomial
@@ -55,13 +55,24 @@ class Plot extends d3Object
 
     console.log norm(dot(T(@A), [@k1, @k2])), @polyError(@k1, @k2)
 
-    K1 = linspace(0,1,4)
-    K2 = linspace(0,1,4)
+
+    dk1 = 1/4
+    dk2 = 1/4
+
+    K1 = (i*dk1 for i in [0...5]) #linspace(0,1,4)
+    K2 = (i*dk2 for i in [0...5]) #linspace(0,1,4)
 
     E = ((@polyError(k1, k2) for k1 in K1) for k2 in K2)
 
-    console.log "E", E
+    D = []
+    for k1 in K1
+      for k2 in K2
+        D.push {e:@polyError(k1, k2), k1:k1, k2:k2}
 
+
+    console.log "D", D
+
+    #    ({x:u, y:y[idx]} for u, idx in x)
 
     #---- d3 ----#
 
@@ -140,6 +151,22 @@ class Plot extends d3Object
 
       #console.log "m", m
       #console.log "???", @cursor.attr("cx")
+
+
+    console.log "domain", [0, d3.max(D, (d) -> d.e)]
+    @z.domain([0, d3.max(D, (d) -> d.e)])
+
+    @space.selectAll(".tile")
+      .data(D)
+      .enter().append("rect")
+      .attr("class", "tile")
+      .attr("x", (d) => @x(d.k1))
+      .attr("y", (d) => @x(d.k2))
+      .attr("width", @x(dk1))
+      .attr("height", @y(dk2))
+      .style("fill", (d) => @z(d.e))
+      #.style("stroke", "blue")
+
 
 
     #---- plot ----#
@@ -278,6 +305,10 @@ class Plot extends d3Object
     @y = d3.scaleLinear()
       .domain([0, 1])
       .range([height, 0])
+
+    @z = d3.scaleLinear()
+      #.domain([0, 1])
+      .range(["white", "steelblue"])
 
     @xAxis = d3.axisBottom()
       .scale(@x)

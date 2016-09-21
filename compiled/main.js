@@ -56,29 +56,54 @@
     height = 480 - margin.top - margin.bottom;
 
     function Plot(k11, k21) {
-      var E, K1, K2, c0, k1, k2, rect, self, xAxis;
+      var D, E, K1, K2, c0, dk1, dk2, i, j, k, k1, k2, len, len1, rect, self, u, xAxis;
       this.k1 = k11 != null ? k11 : 0.25;
       this.k2 = k21 != null ? k21 : 0.75;
       Plot.__super__.constructor.call(this, "board");
       this.xd = [0.3, 0.5, 0.7, 0.9];
-      this.yd = [0.3, 0.4, 0.4, 0.9];
+      this.yd = (function() {
+        var j, len, ref, results;
+        ref = this.xd;
+        results = [];
+        for (j = 0, len = ref.length; j < len; j++) {
+          u = ref[j];
+          results.push(0.5 * u + 0.5 * u * u);
+        }
+        return results;
+      }).call(this);
       this.dd = this.d3Format(this.xd, this.yd);
       this.A = pow(rep([2], this.xd), T(rep([4], [1, 2])));
       this.AAT = dot(this.A, T(this.A));
       c0 = this.polyLeastSquares(this.yd);
       console.log(norm(dot(T(this.A), [this.k1, this.k2])), this.polyError(this.k1, this.k2));
-      K1 = linspace(0, 1, 4);
-      K2 = linspace(0, 1, 4);
-      E = (function() {
-        var i, len, results;
+      dk1 = 1 / 4;
+      dk2 = 1 / 4;
+      K1 = (function() {
+        var j, results;
         results = [];
-        for (i = 0, len = K2.length; i < len; i++) {
-          k2 = K2[i];
+        for (i = j = 0; j < 5; i = ++j) {
+          results.push(i * dk1);
+        }
+        return results;
+      })();
+      K2 = (function() {
+        var j, results;
+        results = [];
+        for (i = j = 0; j < 5; i = ++j) {
+          results.push(i * dk2);
+        }
+        return results;
+      })();
+      E = (function() {
+        var j, len, results;
+        results = [];
+        for (j = 0, len = K2.length; j < len; j++) {
+          k2 = K2[j];
           results.push((function() {
-            var j, len1, results1;
+            var k, len1, results1;
             results1 = [];
-            for (j = 0, len1 = K1.length; j < len1; j++) {
-              k1 = K1[j];
+            for (k = 0, len1 = K1.length; k < len1; k++) {
+              k1 = K1[k];
               results1.push(this.polyError(k1, k2));
             }
             return results1;
@@ -86,7 +111,19 @@
         }
         return results;
       }).call(this);
-      console.log("E", E);
+      D = [];
+      for (j = 0, len = K1.length; j < len; j++) {
+        k1 = K1[j];
+        for (k = 0, len1 = K2.length; k < len1; k++) {
+          k2 = K2[k];
+          D.push({
+            e: this.polyError(k1, k2),
+            k1: k1,
+            k2: k2
+          });
+        }
+      }
+      console.log("D", D);
       this.obj.attr("id", "svg").attr('width', 960).attr('height', 480);
       this.obj.append("rect").attr("x", 0).attr("y", 0).attr("height", 480).attr("width", 960).style("stroke", "blue").style("fill", "none").style("stroke-width", 10);
       this.space = this.obj.append('g').attr('transform', "translate(" + 480. + "," + 0. + ")").attr('width', width).attr('height', height).attr('id', 'space');
@@ -96,7 +133,7 @@
       this.cursor = this.space.append("circle").attr("r", 5).attr("cx", 77).attr("cy", 99);
       self = this;
       rect.on('mousedown', function() {
-        var X, Y, dx, dy, m, u, v;
+        var X, Y, dx, dy, m, v;
         X = self.cursor.attr("cx");
         Y = self.cursor.attr("cy");
         m = d3.mouse(this);
@@ -117,6 +154,29 @@
           return self.cursor.attr("cy", parseInt(Y) + 10);
         }
       });
+      console.log("domain", [
+        0, d3.max(D, function(d) {
+          return d.e;
+        })
+      ]);
+      this.z.domain([
+        0, d3.max(D, function(d) {
+          return d.e;
+        })
+      ]);
+      this.space.selectAll(".tile").data(D).enter().append("rect").attr("class", "tile").attr("x", (function(_this) {
+        return function(d) {
+          return _this.x(d.k1);
+        };
+      })(this)).attr("y", (function(_this) {
+        return function(d) {
+          return _this.x(d.k2);
+        };
+      })(this)).attr("width", this.x(dk1)).attr("height", this.y(dk2)).style("fill", (function(_this) {
+        return function(d) {
+          return _this.z(d.e);
+        };
+      })(this));
       this.plot = this.obj.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')').attr('width', width).attr('height', height).attr('id', 'plot');
       this.plot.append("g").attr("id", "x-axis").attr("class", "axis").attr("transform", "translate(0, " + (height + 10) + ")").call(this.xAxis);
       this.plot.append("g").attr("id", "y-axis").attr("class", "axis").attr("transform", "translate(-10, 0)").call(this.yAxis);
@@ -163,21 +223,21 @@
       var x, xp, yk, yp;
       xp = linspace(0, 1, 100);
       yp = (function() {
-        var i, len, results;
+        var j, len, results;
         results = [];
-        for (i = 0, len = xp.length; i < len; i++) {
-          x = xp[i];
+        for (j = 0, len = xp.length; j < len; j++) {
+          x = xp[j];
           results.push(this.k1 * x + this.k2 * x * x);
         }
         return results;
       }).call(this);
       this.dp = this.d3Format(xp, yp);
       yk = (function() {
-        var i, len, ref, results;
+        var j, len, ref, results;
         ref = this.xd;
         results = [];
-        for (i = 0, len = ref.length; i < len; i++) {
-          x = ref[i];
+        for (j = 0, len = ref.length; j < len; j++) {
+          x = ref[j];
           results.push(this.k1 * x + this.k2 * x * x);
         }
         return results;
@@ -215,9 +275,9 @@
     };
 
     Plot.prototype.d3Format = function(x, y) {
-      var i, idx, len, results, u;
+      var idx, j, len, results, u;
       results = [];
-      for (idx = i = 0, len = x.length; i < len; idx = ++i) {
+      for (idx = j = 0, len = x.length; j < len; idx = ++j) {
         u = x[idx];
         results.push({
           x: u,
@@ -228,9 +288,9 @@
     };
 
     Plot.prototype.squarify = function(xd, yd, yk) {
-      var e, i, idx, len, u, w, x, y;
+      var e, idx, j, len, u, w, x, y;
       w = [];
-      for (idx = i = 0, len = xd.length; i < len; idx = ++i) {
+      for (idx = j = 0, len = xd.length; j < len; idx = ++j) {
         u = xd[idx];
         x = this.x(u);
         y = Math.min(this.y(yd[idx]), this.y(yk[idx]));
@@ -250,6 +310,7 @@
     Plot.prototype.initAxes = function() {
       this.x = d3.scaleLinear().domain([0, 1]).range([0, width]);
       this.y = d3.scaleLinear().domain([0, 1]).range([height, 0]);
+      this.z = d3.scaleLinear().range(["white", "steelblue"]);
       this.xAxis = d3.axisBottom().scale(this.x);
       return this.yAxis = d3.axisLeft().scale(this.y);
     };
