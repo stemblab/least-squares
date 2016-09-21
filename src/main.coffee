@@ -4,6 +4,8 @@ rep = numeric.rep
 pow = numeric.pow
 dot = numeric.dot
 add = numeric.add
+sub = numeric.sub
+norm = numeric.norm2
 linspace = numeric.linspace
 
 class d3Object
@@ -41,8 +43,25 @@ class Plot extends d3Object
     #@dp = @d3Format(xp, yp) # format for d3
 
     # least squares
-    [c0, @A0] = @polyLeastSquares(@xd, @yd)
+
+    @A = pow(rep([2],@xd),T(rep([4],[1,2])))
+
+    @AAT = dot(@A,T(@A))
+
+    #console.log "A0", @A
+
+    c0 = @polyLeastSquares @yd
     #yk = dot(T(A0), [@k1, @k2]) # values at xd
+
+    console.log norm(dot(T(@A), [@k1, @k2])), @polyError(@k1, @k2)
+
+    K1 = linspace(0,1,4)
+    K2 = linspace(0,1,4)
+
+    E = ((@polyError(k1, k2) for k1 in K1) for k2 in K2)
+
+    console.log "E", E
+
 
     #---- d3 ----#
 
@@ -178,7 +197,9 @@ class Plot extends d3Object
     yp = (@k1*x + @k2*x*x for x in xp)
     @dp = @d3Format(xp, yp) # format for d3
 
-    yk = dot(T(@A0), [@k1, @k2]) # values at xd (fixme: factor out)
+    #yk = dot(T(@A), [@k1, @k2]) # values at xd (fixme: factor out)
+    yk = (@k1*x + @k2*x*x for x in @xd)
+
 
     @squareData = @squarify(@xd, @yd, yk)
 
@@ -224,11 +245,16 @@ class Plot extends d3Object
   #d3.select(window).on 'keydown', (event) ->
   # console.log d3.event.key
 
-  polyLeastSquares: (x, y) ->
-    A = pow(rep([2],x),T(rep([4],[1,2])))
-    AAT = dot(A,T(A))
-    Ay = dot(A,y)
-    [numeric.solve(AAT,Ay), A]
+  polyLeastSquares: (y) ->
+    #A = pow(rep([2],x),T(rep([4],[1,2])))
+    #AAT = dot(@A,T(@A))
+    Ay = dot(@A,y)
+    numeric.solve(@AAT,Ay)
+
+  polyError: (k1, k2) ->
+    norm(sub(dot(T(@A), [k1, k2]), @yd))
+
+
 
   d3Format: (x, y) ->
     ({x:u, y:y[idx]} for u, idx in x)
