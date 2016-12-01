@@ -32,9 +32,15 @@ class Plot extends d3Object
 
     super "board"
 
+    ###
+    x = [-0.7 -0.5 0.3 0.9].';
+    y = 0.4*f1(x) + 0.6*f2(x);
+    ###
+
     # data
-    @xd = [0.3, 0.5, 0.7, 0.9]
-    @yd = (0.5*u + 0.5*u*u for u in @xd) #[0.3, 0.4, 0.7, 0.9]
+    @xd = [-0.7, -0.5, 0.3, 0.9]
+    @yd = add((0.4*u + 0.6*u*u for u in @xd),[0, 0, 0, 0]) #[0.3, 0.4, 0.7, 0.9]
+
     @dd = @d3Format(@xd, @yd) # format for d3
 
     # polynomial
@@ -56,11 +62,13 @@ class Plot extends d3Object
     console.log norm(dot(T(@A), [@k1, @k2])), @polyError(@k1, @k2)
 
 
-    dk1 = 1/4
-    dk2 = 1/4
+    dk1 = 1/10
+    dk2 = 1/10
 
-    K1 = (i*dk1 for i in [0...5]) #linspace(0,1,4)
-    K2 = (i*dk2 for i in [0...5]) #linspace(0,1,4)
+    #console.log "count", [1..5]
+
+    K1 = (i*dk1 for i in [1..9]) #linspace(0,1,4)
+    K2 = (i*dk2 for i in [1..9]) #linspace(0,1,4)
 
     E = ((@polyError(k1, k2) for k1 in K1) for k2 in K2)
 
@@ -96,7 +104,7 @@ class Plot extends d3Object
     #---- parameter space ----#
 
     @space = @obj.append('g')
-      .attr('transform', "translate(#{480},#{0})")
+      .attr('transform', "translate(#{480},#{50})")
       .attr('width', width)
       .attr('height', height)
       .attr('id','space')
@@ -113,14 +121,14 @@ class Plot extends d3Object
       .attr("transform", "translate(-10, 0)")
       .call(@yAxis)
 
-    rect = @space.append("rect")
-      .attr("x", 0)
-      .attr("y", 0)
-      .attr("height", 480)
-      .attr("width", 480)
-      .style("stroke", "green")
-      .style("fill", "white")
-      .style("stroke-width", 15)
+    # rect = @space.append("rect")
+    #   .attr("x", 0)
+    #   .attr("y", 0)
+    #   .attr("height", 480)
+    #   .attr("width", 480)
+    #   .style("stroke", "green")
+    #   .style("fill", "none")
+    #   .style("stroke-width", 15)
 
     @cursor = @space.append("circle")
       .attr("r", 5)
@@ -131,26 +139,19 @@ class Plot extends d3Object
     #  console.log d3.event.key
 
 
-    self = this
-    rect.on 'mousedown',  ->
-      X = self.cursor.attr("cx")
-      Y = self.cursor.attr("cy")
-      m = d3.mouse(this)
-      dx = X-m[0]
-      dy = Y-m[1]
-      u = dx+dy
-      v = dx-dy
-      if u<0 and v<0 then self.cursor.attr("cx", parseInt(X)+10)
-      if u>0 and v>0 then self.cursor.attr("cx", parseInt(X)-10)
-      if u>0 and v<0 then self.cursor.attr("cy", parseInt(Y)-10)
-      if u<0 and v>0 then self.cursor.attr("cy", parseInt(Y)+10)
-
-      #self.cursor.attr("cx", parseInt(X)+10)
-
-      #m = d3.mouse(evt.)
-
-      #console.log "m", m
-      #console.log "???", @cursor.attr("cx")
+    # self = this
+    # rect.on 'mousedown',  ->
+    #   X = self.cursor.attr("cx")
+    #   Y = self.cursor.attr("cy")
+    #   m = d3.mouse(this)
+    #   dx = X-m[0]
+    #   dy = Y-m[1]
+    #   u = dx+dy
+    #   v = dx-dy
+    #   if u<0 and v<0 then self.cursor.attr("cx", parseInt(X)+10)
+    #   if u>0 and v>0 then self.cursor.attr("cx", parseInt(X)-10)
+    #   if u>0 and v<0 then self.cursor.attr("cy", parseInt(Y)-10)
+    #   if u<0 and v>0 then self.cursor.attr("cy", parseInt(Y)+10)
 
 
     console.log "domain", [0, d3.max(D, (d) -> d.e)]
@@ -160,10 +161,10 @@ class Plot extends d3Object
       .data(D)
       .enter().append("rect")
       .attr("class", "tile")
-      .attr("x", (d) => @x(d.k1))
-      .attr("y", (d) => @x(d.k2))
-      .attr("width", @x(dk1))
-      .attr("height", @y(dk2))
+      .attr("x", (d) => @x(d.k1-dk1/2))
+      .attr("y", (d) => @y(d.k2+dk2/2))
+      .attr("width", @x(dk1)-@x(0))
+      .attr("height", @y(0)-@y(dk2))
       .style("fill", (d) => @z(d.e))
       #.style("stroke", "blue")
 
@@ -276,6 +277,7 @@ class Plot extends d3Object
     #A = pow(rep([2],x),T(rep([4],[1,2])))
     #AAT = dot(@A,T(@A))
     Ay = dot(@A,y)
+    console.log "eqns", @AAT, Ay
     numeric.solve(@AAT,Ay)
 
   polyError: (k1, k2) ->

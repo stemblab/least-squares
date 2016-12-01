@@ -56,32 +56,37 @@
     height = 480 - margin.top - margin.bottom;
 
     function Plot(k11, k21) {
-      var D, E, K1, K2, c0, dk1, dk2, i, j, k, k1, k2, len, len1, rect, self, u, xAxis;
+      var D, E, K1, K2, c0, dk1, dk2, i, j, k, k1, k2, len, len1, u, xAxis;
       this.k1 = k11 != null ? k11 : 0.25;
       this.k2 = k21 != null ? k21 : 0.75;
       Plot.__super__.constructor.call(this, "board");
-      this.xd = [0.3, 0.5, 0.7, 0.9];
-      this.yd = (function() {
+
+      /*
+      x = [-0.7 -0.5 0.3 0.9].';
+      y = 0.4*f1(x) + 0.6*f2(x);
+       */
+      this.xd = [-0.7, -0.5, 0.3, 0.9];
+      this.yd = add((function() {
         var j, len, ref, results;
         ref = this.xd;
         results = [];
         for (j = 0, len = ref.length; j < len; j++) {
           u = ref[j];
-          results.push(0.5 * u + 0.5 * u * u);
+          results.push(0.4 * u + 0.6 * u * u);
         }
         return results;
-      }).call(this);
+      }).call(this), [0, 0, 0, 0]);
       this.dd = this.d3Format(this.xd, this.yd);
       this.A = pow(rep([2], this.xd), T(rep([4], [1, 2])));
       this.AAT = dot(this.A, T(this.A));
       c0 = this.polyLeastSquares(this.yd);
       console.log(norm(dot(T(this.A), [this.k1, this.k2])), this.polyError(this.k1, this.k2));
-      dk1 = 1 / 4;
-      dk2 = 1 / 4;
+      dk1 = 1 / 10;
+      dk2 = 1 / 10;
       K1 = (function() {
         var j, results;
         results = [];
-        for (i = j = 0; j < 5; i = ++j) {
+        for (i = j = 1; j <= 9; i = ++j) {
           results.push(i * dk1);
         }
         return results;
@@ -89,7 +94,7 @@
       K2 = (function() {
         var j, results;
         results = [];
-        for (i = j = 0; j < 5; i = ++j) {
+        for (i = j = 1; j <= 9; i = ++j) {
           results.push(i * dk2);
         }
         return results;
@@ -126,34 +131,10 @@
       console.log("D", D);
       this.obj.attr("id", "svg").attr('width', 960).attr('height', 480);
       this.obj.append("rect").attr("x", 0).attr("y", 0).attr("height", 480).attr("width", 960).style("stroke", "blue").style("fill", "none").style("stroke-width", 10);
-      this.space = this.obj.append('g').attr('transform', "translate(" + 480. + "," + 0. + ")").attr('width', width).attr('height', height).attr('id', 'space');
+      this.space = this.obj.append('g').attr('transform', "translate(" + 480. + "," + 50. + ")").attr('width', width).attr('height', height).attr('id', 'space');
       xAxis = this.space.append("g").attr("id", "x-axis").attr("class", "axis").attr("transform", "translate(0, " + (height + 10) + ")").call(this.xAxis);
       this.space.append("g").attr("id", "y-axis").attr("class", "axis").attr("transform", "translate(-10, 0)").call(this.yAxis);
-      rect = this.space.append("rect").attr("x", 0).attr("y", 0).attr("height", 480).attr("width", 480).style("stroke", "green").style("fill", "white").style("stroke-width", 15);
       this.cursor = this.space.append("circle").attr("r", 5).attr("cx", 77).attr("cy", 99);
-      self = this;
-      rect.on('mousedown', function() {
-        var X, Y, dx, dy, m, v;
-        X = self.cursor.attr("cx");
-        Y = self.cursor.attr("cy");
-        m = d3.mouse(this);
-        dx = X - m[0];
-        dy = Y - m[1];
-        u = dx + dy;
-        v = dx - dy;
-        if (u < 0 && v < 0) {
-          self.cursor.attr("cx", parseInt(X) + 10);
-        }
-        if (u > 0 && v > 0) {
-          self.cursor.attr("cx", parseInt(X) - 10);
-        }
-        if (u > 0 && v < 0) {
-          self.cursor.attr("cy", parseInt(Y) - 10);
-        }
-        if (u < 0 && v > 0) {
-          return self.cursor.attr("cy", parseInt(Y) + 10);
-        }
-      });
       console.log("domain", [
         0, d3.max(D, function(d) {
           return d.e;
@@ -166,13 +147,13 @@
       ]);
       this.space.selectAll(".tile").data(D).enter().append("rect").attr("class", "tile").attr("x", (function(_this) {
         return function(d) {
-          return _this.x(d.k1);
+          return _this.x(d.k1 - dk1 / 2);
         };
       })(this)).attr("y", (function(_this) {
         return function(d) {
-          return _this.x(d.k2);
+          return _this.y(d.k2 + dk2 / 2);
         };
-      })(this)).attr("width", this.x(dk1)).attr("height", this.y(dk2)).style("fill", (function(_this) {
+      })(this)).attr("width", this.x(dk1) - this.x(0)).attr("height", this.y(0) - this.y(dk2)).style("fill", (function(_this) {
         return function(d) {
           return _this.z(d.e);
         };
@@ -267,6 +248,7 @@
     Plot.prototype.polyLeastSquares = function(y) {
       var Ay;
       Ay = dot(this.A, y);
+      console.log("eqns", this.AAT, Ay);
       return numeric.solve(this.AAT, Ay);
     };
 
